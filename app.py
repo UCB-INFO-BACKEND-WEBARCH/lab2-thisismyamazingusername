@@ -162,7 +162,28 @@ def _generate_advice_from_openai(major):
 
 @app.post('/students/<int:student_id>/advice')
 def generate_advice(student_id):
-    pass  # TODO: Replace with your implementation
+    # can check if id not in students
+    student = students.get(student_id)
+    if not student:
+        # error if id not found
+        return jsonify({"error": "Student not found"}), 404
+    # check for major
+    if students[student_id]['major'] == "":
+        # error
+        return jsonify({"error": "Student major is required to generate advice"}), 400
+    # need try except for graceful error handling
+    try:
+        advice = _generate_advice_from_openai(students[student_id]['major'])
+    except Exception as e:
+        app.logger.error(f"OpenAI API call failed: {e}")
+        return jsonify({"error": "Upstream AI service failed"}), 502
+    # return advice and save to student dict
+    students[student_id]['advice'] = advice
+    return jsonify({
+        "id": student_id, 
+        "major": students[student_id]['major'], 
+        "advice": advice
+        }), 200
 
 
 # --- Endpoint B: GET /students/<id>/advice ---
@@ -177,7 +198,20 @@ def generate_advice(student_id):
 
 @app.get('/students/<int:student_id>/advice')
 def get_advice(student_id):
-    pass  # TODO: Replace with your implementation
+    # check id in students
+    student = students.get(student_id)
+    if not student:
+        # error
+        return jsonify({"error": "Student not found"}), 404
+    # check advice 
+    if 'advice' not in students[student_id] or students[student_id]['advice'] == "":
+        # error
+        return jsonify({"error": "Advice not found for this student"}), 404
+    # return advice
+    return jsonify({
+        "id": student_id, 
+        "advice": students[student_id]['advice']
+        }), 200
 
 
 # =============================================================================
